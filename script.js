@@ -33,6 +33,7 @@ function init() {
 
     camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
     camera.position.z = 700;
+    camera.position.y = 100;
     scene = new THREE.Scene();
     scene.background = new THREE.Color( 0xa1a1a1 );
     scene.add( new THREE.AmbientLight( 0x555555 ) );
@@ -69,13 +70,14 @@ function render() {
     controls.update();
     renderer.setRenderTarget( null );
     time += params.timestep;
-    updateGeometry(time)
+    //updateGeometry(time)
     renderer.render( scene, camera );
 }
 
 
 function draw() {
 
+    /*
     var geometry_points = new THREE.BufferGeometry();
     var positions_points = [];
     var colors = [];
@@ -148,7 +150,49 @@ function draw() {
     geometry_trigs.computeBoundingSphere();
     var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide, opacity: 1.0, transparent: true, wireframe: true  });
     mesh = new THREE.Mesh( geometry_trigs, material );
-    scene.add( mesh );
+    scene.add( mesh ); */
+
+
+
+
+    var curve = new THREE.CubicBezierCurve3(
+        new THREE.Vector3( -2000, 0, -2000 ),
+        new THREE.Vector3( 0, 0, 0 ),
+        new THREE.Vector3( 0, 0, 0 ),
+        new THREE.Vector3( 2000, 0, -2000 )
+    );
+    var linePoints = curve.getPoints( 50 );
+    var geometry = new THREE.BufferGeometry().setFromPoints( linePoints );
+    var lineMaterial = new THREE.LineBasicMaterial( { color : 0xff0000 } );
+    var curveObject = new THREE.Line( geometry, lineMaterial );
+    scene.add(curveObject)
+
+    console.log(linePoints)
+    let cubic = new Cubic(new Vector3( -2000, 0, -2000 ),new Vector3( 2000, 0, -2000 ),new Vector3( 0, 0, 5000 ),new Vector3( 0, 0, 5000 ));
+    linePoints = cubic.getPoints(50, 0, 1)
+    console.log(linePoints)
+    cubic.print()
+
+
+
+
+    var geometry = new THREE.BufferGeometry().setFromPoints( linePoints );
+    var lineMaterial = new THREE.LineBasicMaterial( { color : 0xffffff } );
+    var curveObject = new THREE.Line( geometry, lineMaterial );
+    scene.add(curveObject)
+
+
+
+
+    linePoints = []
+    linePoints.push( new Vector3( -2000, 0, -2000 ) )
+    linePoints.push( new Vector3( 0, 0, 2000 ) )
+    linePoints.push( new Vector3( 0, 0, 2000 ) )
+    linePoints.push( new Vector3( 2000, 0, -2000 ) )
+    var geometry = new THREE.BufferGeometry().setFromPoints( linePoints );
+    var lineMaterial = new THREE.LineBasicMaterial( { color : 0x0000ff } );
+    var curveObject = new THREE.Line( geometry, lineMaterial );
+    scene.add(curveObject)
 
 
     var gui = new GUI();
@@ -158,7 +202,7 @@ function draw() {
     gui.add( params, 'scaleY', 1, 200 )
     gui.add( params, 'scaleZ', 1, 100 ).onChange( function ( value ) { updateScale(params.scaleX, value) } );
     gui.add( params, 'point_scale', 1, 20 ).onChange( function ( value ) { updateSize(value) } ).name('point scale');
-    gui.add( material, 'wireframe').name( 'show wireframe' );
+    //gui.add( material, 'wireframe').name( 'show wireframe' );
     gui.open();
     
 
@@ -226,8 +270,6 @@ function updateGeometry(time) {
             var z = (((i - 1)/3) - x) / (numX + 1)
 
             var height = laplacianHeight(x, z, positions)
-            if (i == Math.floor(positions.length/2)-2)
-                height = params.scaleY * 100 * (Math.sin(time + i/3))
 
             new_positions[i] = height
 
