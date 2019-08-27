@@ -9,6 +9,7 @@ var container, stats;
 var camera, controls, scene, renderer;
 var mouse = new THREE.Vector2();
 var time = 0.0;
+var cubic, curveObject;
 var points, mesh;
 var params = {
                 color: '#03fccf',
@@ -17,7 +18,7 @@ var params = {
                 scaleZ: 50,
                 numX: 101,
                 numZ: 100,
-                timestep: 0.1,
+                timestep: 0.01,
                 point_scale: 5
             };
 
@@ -70,14 +71,14 @@ function render() {
     controls.update();
     renderer.setRenderTarget( null );
     time += params.timestep;
-    //updateGeometry(time)
+    updateGeometry(time)
     renderer.render( scene, camera );
 }
 
 
 function draw() {
 
-    /*
+    
     var geometry_points = new THREE.BufferGeometry();
     var positions_points = [];
     var colors = [];
@@ -150,50 +151,18 @@ function draw() {
     geometry_trigs.computeBoundingSphere();
     var material = new THREE.MeshBasicMaterial({ vertexColors: THREE.VertexColors, side: THREE.DoubleSide, opacity: 1.0, transparent: true, wireframe: true  });
     mesh = new THREE.Mesh( geometry_trigs, material );
-    scene.add( mesh ); */
+    scene.add( mesh ); 
 
+    /*
 
-
-
-    var curve = new THREE.CubicBezierCurve3(
-        new THREE.Vector3( -2000, 0, -2000 ),
-        new THREE.Vector3( 0, 0, 0 ),
-        new THREE.Vector3( 0, 0, 0 ),
-        new THREE.Vector3( 2000, 0, -2000 )
-    );
-    var linePoints = curve.getPoints( 50 );
-    var geometry = new THREE.BufferGeometry().setFromPoints( linePoints );
-    var lineMaterial = new THREE.LineBasicMaterial( { color : 0xff0000 } );
-    var curveObject = new THREE.Line( geometry, lineMaterial );
-    scene.add(curveObject)
-
-    console.log(linePoints)
-    let cubic = new Cubic(new Vector3( -2000, 0, -2000 ),new Vector3( 2000, 0, -2000 ),new Vector3( 0, 0, 5000 ),new Vector3( 0, 0, 5000 ));
-    linePoints = cubic.getPoints(50, 0, 1)
-    console.log(linePoints)
-    cubic.print()
-
-
-
-
+    cubic = new Cubic(new Vector3( -2000, 0, -2000 ),new Vector3( 2000, 500, -2000 ),new Vector3( 0, -1000, 5000 ),new Vector3( 0, 0, 5000 ));
+    var linePoints = cubic.getPoints(50, 0, 1)
     var geometry = new THREE.BufferGeometry().setFromPoints( linePoints );
     var lineMaterial = new THREE.LineBasicMaterial( { color : 0xffffff } );
-    var curveObject = new THREE.Line( geometry, lineMaterial );
+    curveObject = new THREE.Line( geometry, lineMaterial );
     scene.add(curveObject)
 
-
-
-
-    linePoints = []
-    linePoints.push( new Vector3( -2000, 0, -2000 ) )
-    linePoints.push( new Vector3( 0, 0, 2000 ) )
-    linePoints.push( new Vector3( 0, 0, 2000 ) )
-    linePoints.push( new Vector3( 2000, 0, -2000 ) )
-    var geometry = new THREE.BufferGeometry().setFromPoints( linePoints );
-    var lineMaterial = new THREE.LineBasicMaterial( { color : 0x0000ff } );
-    var curveObject = new THREE.Line( geometry, lineMaterial );
-    scene.add(curveObject)
-
+    */
 
     var gui = new GUI();
     gui.addColor( params, 'color' )
@@ -239,7 +208,7 @@ function laplacianHeight(x, z, positions) {
     var sx = params.numX + 1
 
     var sum = 0;
-    var scale = 2
+    var scale = 1
     for(var dz = -scale; dz <= scale; dz++) {
         for(var dx = -scale; dx <= scale; dx++) {
             if ((z+dz < 0) || (z+dz > params.numZ) || (x+dx < 0) || (x+dx > params.numX))
@@ -256,12 +225,19 @@ function laplacianHeight(x, z, positions) {
 
 function updateGeometry(time) {
 
+    /*
+    var linePoints = cubic.getPoints(50, time%1, 1)
+    var geometry = new THREE.BufferGeometry().setFromPoints( linePoints );
+    curveObject.geometry = geometry
+    */
+
 	var positions = points.geometry.attributes.position.array
     var new_positions = positions;
     var c = new THREE.Color(params.color)
     var colors = [];
     var numX = params.numX;
     var numZ = params.numZ;
+    var t = time % 1
 
 	for(var i = 0; i < positions.length; i++) {
     	if((i-1) % 3 == 0) {
@@ -270,6 +246,8 @@ function updateGeometry(time) {
             var z = (((i - 1)/3) - x) / (numX + 1)
 
             var height = laplacianHeight(x, z, positions)
+            if (x == Math.floor(numX / 2) && z == Math.floor(numZ / 2))
+                height = 1000 * Math.sin(t * 2 * Math.PI)
 
             new_positions[i] = height
 
@@ -329,6 +307,7 @@ function updateGeometry(time) {
     mesh.geometry.addAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
     mesh.geometry.addAttribute( 'position', positionAttribute );
     mesh.geometry.attributes.position.needsUpdate = true;
+    
     
 }
 

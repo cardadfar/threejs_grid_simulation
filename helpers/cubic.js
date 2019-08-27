@@ -24,6 +24,14 @@ class Cubic {
         return t3.add(t2).add(t1).add(t0)
     }
 
+    derivativeAt(t) {
+        var t3 = (this.a).scale( 3*t*t )
+        var t2 = (this.b).scale( 2*t   )
+        var t1 = (this.c).scale( 1     )
+
+        return t3.add(t2).add(t1)
+    }
+
     getPoints( n, t0, t1 ) {
 
         var points = []
