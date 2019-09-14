@@ -1,6 +1,6 @@
 class Mesh {
 
-    constructor(scene, params, origin, color, peak) {
+    constructor(scene, params, origin, color) {
         /* origin - origin vector
          * points - reference to point cloud object
          * mesh - reference to triangle mesh object
@@ -8,76 +8,130 @@ class Mesh {
          */
 
         this.origin = origin
-        this.peak = peak
 
-        var geometry_points = new THREE.BufferGeometry();
-        var positions_points = [];
-        var old_positions = []
-        var numX = params.numX;
-        var numZ = params.numZ;
+        var geometry = new THREE.PlaneBufferGeometry( params.scaleX * params.numX, params.scaleY * params.numY, params.numX, params.numY );
         
-        for ( var i = 0; i <= numZ; i ++ ) {
-            for ( var j = 0; j <= numX; j ++ ) {
-                var x = j * params.scaleX - (numX/2 * params.scaleX) + origin.x;
-                var y = origin.y;
-                if( i == Math.floor(numZ/2) && j == Math.floor(numX/2)) { y = 100}
-                var z = i * params.scaleZ - (numZ/2 * params.scaleZ) + origin.z;
+        function vertexShader() {
+            return `
+              varying vec3 vUv; 
+              varying vec3 vUv_camera;
+              varying vec2 xy;
+              varying vec4 modelViewPosition; 
+              varying vec3 viewNormal;
+              varying vec3 absNormal;
+          
+              void main() {
+                xy = uv;
+                vUv = position; 
+                vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
+                absNormal = normal;
+                viewNormal = (modelViewMatrix * vec4(normal, 0.0)).xyz;
+                vec4 cameraResult = projectionMatrix * modelViewPosition; 
+                vUv_camera = cameraResult.xyz;
+                gl_Position = cameraResult; 
+              }
+            `
+          }
+          
+          function fragmentShader() {
+            return `
+                uniform vec3 colorA; 
+                uniform vec3 colorB; 
+                uniform vec3 colorC; 
+                uniform vec3 colorD; 
+                uniform vec3 colorBlack; 
 
-                positions_points.push( x, y, z );
-                old_positions.push(0,0,0);
-            }
-        }
+                varying vec3 vUv;
+                varying vec3 vUv_camera;
+                varying vec2 xy;
 
-        geometry_points.addAttribute( 'position', new THREE.Float32BufferAttribute( positions_points, 3 ) );
-        var material = new THREE.PointsMaterial( { size: params.point_scale, color: 0xff0000, side: THREE.DoubleSide } );
-        this.points = new THREE.Points( geometry_points, material );
-        scene.add( this.points );
+                varying vec3 viewNormal;
+                varying vec3 absNormal;
 
-        this.old_positions = old_positions
+                uniform sampler2D curvature;
+                uniform sampler2D gradient;
+          
+                void main() {
 
-        var geometry_trigs = new THREE.BufferGeometry();
-        var positions_trig = [];
-        for ( var i = 0; i < numZ; i ++ ) {
-            for ( var j = 0; j < numX; j ++ ) {
-                var sx = numX + 1
-                var ax = positions_points[3*(i*sx + j)    ]
-                var ay = positions_points[3*(i*sx + j) + 1]
-                var az = positions_points[3*(i*sx + j) + 2]
-                var bx = positions_points[3*(i*sx + j + 1)    ]
-                var by = positions_points[3*(i*sx + j + 1) + 1]
-                var bz = positions_points[3*(i*sx + j + 1) + 2]
-                var cx = positions_points[3*((i+1)*sx + j)    ]
-                var cy = positions_points[3*((i+1)*sx + j) + 1]
-                var cz = positions_points[3*((i+1)*sx + j) + 2]
-                positions_trig.push( ax, ay, az );
-                positions_trig.push( bx, by, bz );
-                positions_trig.push( cx, cy, cz );
-                // push b and c again to save time
-                var dx = positions_points[3*(i*sx + j + 1)    ]
-                var dy = positions_points[3*(i*sx + j + 1) + 1]
-                var dz = positions_points[3*(i*sx + j + 1) + 2]
-                var ex = positions_points[3*((i+1)*sx + j)    ]
-                var ey = positions_points[3*((i+1)*sx + j) + 1]
-                var ez = positions_points[3*((i+1)*sx + j) + 2]
-                var fx = positions_points[3*((i+1)*sx + j + 1)    ]
-                var fy = positions_points[3*((i+1)*sx + j + 1) + 1]
-                var fz = positions_points[3*((i+1)*sx + j + 1) + 2]
-                positions_trig.push( dx, dy, dz );
-                positions_trig.push( ex, ey, ez );
-                positions_trig.push( fx, fy, fz );
-            }
-        }
-        geometry_trigs.addAttribute( 'position', new THREE.Float32BufferAttribute( positions_trig, 3 ) );
+                    float newX = 0.99 * (xy.x - 0.5) + 0.5;
+                    float newY = -1.0 * xy.y + 1.0;
+                    vec2 newXY = vec2(newX, newY);
+                    vec4 curve = texture2D(curvature, newXY);
+                    vec4 grad  = texture2D(gradient, newXY);
 
-        geometry_trigs.computeFaceNormals();
-        geometry_trigs.computeVertexNormals();
+                    vec3 color;
 
-        var material = new THREE.MeshLambertMaterial({ color: color, side: THREE.DoubleSide, flatShading: THREE.SmoothShading});
-        this.mesh = new THREE.Mesh( geometry_trigs, material );
-        this.helper = new THREE.VertexNormalsHelper( this.mesh, 5, 0xff0000, 100 );
+                    if( curve.x > 0.8 )
+                        color = colorA;
+                    else if( vUv.z > 6.0 )
+                        color = colorB;
+                    else if( vUv.z > 2.0 )
+                        color = colorC;
+                    else 
+                        color = colorD;
 
-        scene.add( this.mesh ); 
-        scene.add( this.helper );
+                    
+
+                    if( absNormal.z > 0.9 && vUv.z > 15.0 )
+                        color = colorA;
+                    
+
+                    if( vUv_camera.z > 650.0 )
+                        color = 0.5*color + 0.5*colorBlack;
+                    else if( vUv_camera.z > 550.0 )
+                        color = 0.6*color + 0.4*colorBlack;
+                    else if( vUv_camera.z > 450.0 )
+                        color = 0.7*color + 0.3*colorBlack;
+                    else if( vUv_camera.z > 350.0 )
+                        color = 0.8*color + 0.2*colorBlack;
+                    else if( vUv_camera.z > 250.0 )
+                        color = 0.9*color + 0.1*colorBlack;
+
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `
+          }
+
+        var wth = params.numX + 1;
+        var hgt = params.numY + 1;
+        var curvature = new Uint8Array( 3 * wth * hgt );
+        var gradient  = new Uint8Array( 3 * wth * hgt );
+
+        var curvatureTexture = new THREE.DataTexture(curvature, wth, hgt, THREE.RGBFormat);
+        var gradientTexture  = new THREE.DataTexture(gradient , wth, hgt, THREE.RGBFormat);
+        curvatureTexture.magFilter = THREE.LinearFilter;
+        gradientTexture.magFilter = THREE.LinearFilter;
+        curvatureTexture.needsUpdate = true;
+        gradientTexture.needsUpdate = true;
+
+        var uniforms = {}
+        uniforms.colorA     = {type: 'vec3', value: new THREE.Color(0xffffff)}
+        uniforms.colorB     = {type: 'vec3', value: new THREE.Color(0xacdbf7)}
+        uniforms.colorC     = {type: 'vec3', value: new THREE.Color(0x0095c6)}
+        uniforms.colorD     = {type: 'vec3', value: new THREE.Color(0x132893)}
+        uniforms.colorBlack = {type: 'vec3', value: new THREE.Color(0x264669)}
+        uniforms.curvature  = {type: 't', value: curvatureTexture }
+        uniforms.gradient  = {type: 't', value: gradientTexture }
+        
+        var material =  new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            fragmentShader: fragmentShader(),
+            vertexShader: vertexShader(),
+            side: THREE.DoubleSide,
+          })
+
+
+        //var planeMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+
+        this.mesh = new THREE.Mesh( geometry, material );
+        this.mesh.rotation.x = -Math.PI / 2;
+
+        var positions = this.mesh.geometry.attributes.position.array
+        this.old_positions = positions.slice()
+
+        this.helper = new THREE.VertexNormalsHelper( this.mesh , 2, 0xff0000, 1 );
+        scene.add( this.mesh );
+        scene.add( this.helper ); 
         this.helper.visible = params.normals;
 
     }
@@ -88,81 +142,61 @@ class Mesh {
     }
 
     updateMesh(time, params, burst) {
-        var positions = this.points.geometry.attributes.position.array
-        var new_positions = positions.slice();
-        var numX = params.numX;
-        var numZ = params.numZ;
-    
-        for(var i = 1; i < positions.length; i+=3) {
-    
-            var x = ((i - 1)/3) % (numX + 1)
-            var z = (((i - 1)/3) - x) / (numX + 1)
-            var y = this.laplacianHeight(x, z, positions, params)
 
-            new_positions[i] = y * 0.99 + 0.01 * this.origin.y
-            
-        }
+
+
+        var positions = this.mesh.geometry.attributes.position.array
+        var new_positions = positions.slice();
+
+
+
 
         for(var i = 0; i < burst.length; i++) {
             var mag = burst[i].mag;
             var loc = burst[i].loc;
             var x = Math.floor( (loc.x + params.numX * params.scaleX / 2) / params.scaleX)
-            var z = Math.floor( (loc.z + params.numZ * params.scaleZ / 2) / params.scaleZ)
+            var y = Math.floor( (loc.z + params.numY * params.scaleY / 2) / params.scaleY)
             var sx = params.numX + 1
-            new_positions[3 * (z * sx + x) + 1] = this.peak * mag;
+            
+            for(var dy = 0; dy > -10; dy--) {
+                var yn = y + dy;
+                var hgt_scale = (-0.2 * (dy + 5)*(dy + 5) + 10) / 10
+                if( yn >= 0 )
+                    new_positions[3 * (yn * sx + x) + 2] = mag * params.scaleZ * hgt_scale;
+            }
+            
+        } 
+
+
+        for(var i = 2; i < new_positions.length; i+=3) {
+    
+            var x = ((i - 2)/3) % (params.numX + 1)
+            var y = (((i - 2)/3) - x) / (params.numX + 1)
+
+            if(params.laplacian)
+                var z = this.laplacianHeight(x, y, new_positions, params)
+            else
+                var z = this.convolutionHeight(x, y, new_positions, params)
+
+            new_positions[i] = z * 0.97 + 0.03 * this.origin.z
             
         }
-    
-        this.points.geometry.attributes.position.array = new_positions;
-        this.points.geometry.attributes.position.needsUpdate = true;
 
-        this.old_positions = positions
-    
         
-        var positions_trig = [];
-        for ( var i = 0; i < numZ; i ++ ) {
-            for ( var j = 0; j < numX; j ++ ) {
-    
-                var sx = numX + 1
-                var ax = new_positions[3*(i*sx + j)    ]
-                var ay = new_positions[3*(i*sx + j) + 1]
-                var az = new_positions[3*(i*sx + j) + 2]
-                var bx = new_positions[3*(i*sx + j + 1)]
-                var by = new_positions[3*(i*sx + j + 1) + 1]
-                var bz = new_positions[3*(i*sx + j + 1) + 2]
-                var cx = new_positions[3*((i+1)*sx + j)    ]
-                var cy = new_positions[3*((i+1)*sx + j) + 1]
-                var cz = new_positions[3*((i+1)*sx + j) + 2]
-                positions_trig.push( ax, ay, az );
-                positions_trig.push( bx, by, bz );
-                positions_trig.push( cx, cy, cz );
-                var height = ay / params.scaleY;
-    
-                var dx = new_positions[3*(i*sx + j + 1)    ]
-                var dy = new_positions[3*(i*sx + j + 1) + 1]
-                var dz = new_positions[3*(i*sx + j + 1) + 2]
-                var ex = new_positions[3*((i+1)*sx + j)    ]
-                var ey = new_positions[3*((i+1)*sx + j) + 1]
-                var ez = new_positions[3*((i+1)*sx + j) + 2]
-                var fx = new_positions[3*((i+1)*sx + j + 1)    ]
-                var fy = new_positions[3*((i+1)*sx + j + 1) + 1]
-                var fz = new_positions[3*((i+1)*sx + j + 1) + 2]
-                positions_trig.push( dx, dy, dz );
-                positions_trig.push( ex, ey, ez );
-                positions_trig.push( fx, fy, fz );
-                var height = dy / params.scaleY;
-            }
-        }
-    
-    
-        var positionAttribute = new THREE.Float32BufferAttribute( positions_trig, 3 );
-        this.mesh.geometry.addAttribute( 'position', positionAttribute );
-    
+        
+
+        this.mesh.geometry.attributes.position.array = new_positions;
+        this.mesh.geometry.attributes.position.needsUpdate = true;
         this.mesh.geometry.computeFaceNormals();
         this.mesh.geometry.computeVertexNormals();
         this.helper.update();
-    
-        this.mesh.geometry.attributes.position.needsUpdate = true;
+
+        this.old_positions = positions
+
+
+
+        this.updateCurvature(params, new_positions);
+
     }
 
 
@@ -170,15 +204,15 @@ class Mesh {
 
         var positions_points = []
         var numX = params.numX
-        var numZ = params.numZ
+        var numY = params.numY
         var scaleX = params.scaleX
-        var scaleZ = params.scaleZ
+        var scaleY = params.scaleY
         
-        for ( var i = 0; i <= numZ; i ++ ) {
+        for ( var i = 0; i <= numY; i ++ ) {
             for ( var j = 0; j <= numX; j ++ ) {
                 var x = j * scaleX - (numX/2 * scaleX) + this.origin.x;
                 var y = this.origin.y;
-                var z = i * scaleZ - (numZ/2 * scaleZ) + this.origin.z;
+                var z = i * scaleY - (numY/2 * scaleY) + this.origin.z;
                 positions_points.push( x, y, z );
             }
         }
@@ -188,11 +222,58 @@ class Mesh {
     }
 
 
-    updateSize(size) {
-        this.points.material.size = size;
+    updateCurvature(params, positions) {
+
+        var curvatureTexture = this.mesh.material.uniforms.curvature.value;
+        var gradientTexture  = this.mesh.material.uniforms.gradient.value;
+
+        var wth = params.numX + 1;
+        var hgt = params.numY + 1;
+        var curvature = curvatureTexture.image.data
+        var gradient  = gradientTexture.image.data
+
+        
+        for (var y = 0; y < hgt; y++) {
+            for (var x = 0; x < wth; x++) {
+
+                
+                var dz_dx = ( positions[ 3*(y*wth + (x+1)) + 2 ] - positions[ 3*(y*wth + (x-1)) + 2 ] ) / (2 * params.scaleX)
+                var dz2_dx2 = ( positions[ 3*(y*wth + (x-1)) + 2 ] - 2*positions[ 3*(y*wth + (x)) + 2 ] + positions[ 3*(y*wth + (x+1)) + 2 ] ) / (2 * params.scaleX)
+                var cz_dx = dz2_dx2 / (Math.pow( (1 + (dz_dx*dz_dx)), 1.5 ))
+
+                var dz_dy = (positions[ 3*((y-1)*wth + x) + 2 ] - positions[ 3*((y-1)*wth + x) + 2 ] ) / (2 * params.scaleX)
+                var dz2_dy2 = (positions[ 3*((y-1)*wth + x) + 2 ] - 2*positions[ 3*((y)*wth + x) + 2 ] + positions[ 3*((y+1)*wth + x) + 2 ] ) / (2 * params.scaleX)
+                var cz_dy = dz2_dy2 / (Math.pow( (1 + (dz_dy*dz_dy)), 1.5 ))
+
+                var cz = Math.sqrt(cz_dx*cz_dx + cz_dy*cz_dy)
+
+
+                if ( cz < 0   ) { cz = 0;   }
+                if ( cz > 255 ) { cz = 255; }
+
+
+                curvature[ 3*(y*wth + x)     ] = cz_dx;
+                curvature[ 3*(y*wth + x) + 1 ] = cz_dy;
+                curvature[ 3*(y*wth + x) + 2 ] = cz;
+
+                
+                gradient[ 3*(y*wth + x)     ] = dz_dx;
+                gradient[ 3*(y*wth + x) + 1 ] = dz_dy;
+                gradient[ 3*(y*wth + x) + 2 ] = 0;
+
+            }
+        }
+
+        curvatureTexture.needsUpdate = true;
+        gradientTexture.needsUpdate  = true;
+
+        this.mesh.material.uniforms.curvature.value = curvatureTexture;
+        this.mesh.material.uniforms.gradient.value  = gradientTexture;
+
     }
 
-    laplacianHeight(x, z, positions, params) {
+
+    laplacianHeight(x, y, positions, params) {
 
 
         var sx = params.numX + 1
@@ -203,20 +284,27 @@ class Mesh {
         var right = 0
         var top = 0
         var bottom = 0
-        var prev = this.old_positions[3*(z*sx + x) + 1]
-        var curr = positions[3*(z*sx + x) + 1]
+        var prev = this.old_positions[3*(y*sx + x) + 2]
+        var curr = positions[3*(y*sx + x) + 2]
 
-        if(x > 0)        { left   = positions[3*(z*sx + (x-1)) + 1] }
-        if(x < params.numX) { right  = positions[3*(z*sx + (x+1)) + 1] }
-        if(z > 0)        { bottom = positions[3*((z-1)*sx + x) + 1] }
-        if(z < params.numZ) { top    = positions[3*((z+1)*sx + x) + 1] }
+
+        if(x > 0)           { left   = positions[3*(y*sx + (x-1)) + 2] }
+        if(x < params.numX) { right  = positions[3*(y*sx + (x+1)) + 2] }
+        if(y > 0)           { bottom = positions[3*((y-1)*sx + x) + 2] }
+        if(y < params.numY) { top    = positions[3*((y+1)*sx + x) + 2] }
+
         
         sum = 2 * curr - prev + 0.2*Math.trunc((left + right + top + bottom - 4 * curr) / 4)
-        sum = 0.5 * sum + 0.5 * curr
-        //sum = prev
-        return sum / 1
+        sum = 0.3 * sum + 0.7 * curr
+        return sum
+        
+    
+    }
 
-        /*
+    convolutionHeight(x, y, positions, params) {
+
+
+        var sx = params.numX + 1
         var scale = 1
         var mask = [[1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1],
@@ -224,23 +312,26 @@ class Mesh {
                     [1, 1, 1, 1, 1],
                     [1, 1, 1, 1, 1]]
         var maskSum = 0;
+        var sum = 0;
         var scale = Math.floor(mask.length / 2)
+
         for(var b = 0; b < mask.length; b++) {
             for(var a = 0; a < mask[0].length; a++) {
                 maskSum += mask[b][a]
             }
         }
 
-        for(var dz = -scale; dz <= scale; dz++) {
+        for(var dy = -scale; dy <= scale; dy++) {
             for(var dx = -scale; dx <= scale; dx++) {
-                if ((z+dz < 0) || (z+dz > params.numZ) || (x+dx < 0) || (x+dx > params.numX))
-                    sum += this.origin.y
+                if ((y+dy < 0) || (y+dy > params.numY) || (x+dx < 0) || (x+dx > params.numX))
+                    sum += this.origin.z
                 else
-                    sum += positions[3*((z+dz)*sx + (x+dx)) + 1] * mask[dz+scale][dx+scale]
+                    sum += positions[3*((y+dy)*sx + (x+dx)) + 2] * mask[dy+scale][dx+scale]
             }
         }
     
-        return sum / (maskSum) */
+        return sum / (maskSum) 
+        
     
     }
 }

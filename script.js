@@ -12,15 +12,15 @@ var mesh = [];
 var stream = [];
 var params = {
                 scaleX: 5,
-                scaleY: 1000,
-                scaleZ: 5,
+                scaleY: 5,
+                scaleZ: 0.5,
                 numX: 100,
-                numZ: 100,
-                timestep: 0.01,
-                point_scale: 1,
+                numY: 100,
+                timestep: 0.015,
                 wireframe: false,
                 normals: false,
-                pause: false
+                pause: false,
+                laplacian: false
             };
 
 
@@ -41,7 +41,7 @@ function init() {
     scene.add( new THREE.AmbientLight( 0x555555 ) );
 
 
-    var light = new THREE.PointLight( 0xffffff, 1, 1000 );
+    var light = new THREE.PointLight( 0xffffff, 5, 1000 );
     light.position.set( 0, 200, 0 );
     scene.add( light );
 
@@ -93,11 +93,13 @@ function render() {
 
 function draw() {
 
-    mesh.push( new Mesh(scene, params, new Vector3(0,0,0), 0x1c1f54, 35) );
+    mesh.push( new Mesh(scene, params, new Vector3(0,0,0), 0x1c1f54) );
     
-    for (var i = -250; i < 250; i+= 1) {
-        stream.push( new Stream(scene, params, 2*Math.random(), i) );
-    }
+    // (scene, params, lifetime, offset, x-pos, height)
+    //for(var i = -200; i < 200; i += 5) {
+        var lifetime = 4*(Math.random() + 0.25)
+        stream.push( new Stream(scene, params, lifetime, lifetime*Math.random(), 200, 100*(Math.random()) ) );
+    //}
 
 
 
@@ -105,12 +107,12 @@ function draw() {
     var gui = new GUI();
     gui.add( params, 'timestep', 0, 0.3 );
     gui.add( params, 'scaleX', 1, 100 ).onChange( function () { updateScale() } );
-    gui.add( params, 'scaleY', 1, 1000 )
-    gui.add( params, 'scaleZ', 1, 100 ).onChange( function () { updateScale() } );
-    gui.add( params, 'point_scale', 1, 20 ).onChange( function ( value ) { updateSize(value) } ).name('point scale');
+    gui.add( params, 'scaleZ', 0, 1 )
+    gui.add( params, 'scaleY', 1, 100 ).onChange( function () { updateScale() } );
     gui.add( params, 'wireframe').onChange( function () { updateMaterial() } );
     gui.add( params, 'normals').onChange( function () { updateMaterial() } );
     gui.add( params, 'pause');
+    gui.add( params, 'laplacian');
     gui.open();
 
     
@@ -119,12 +121,6 @@ function draw() {
 function updateScale() {
     for(var i = 0; i < mesh.length; i++) {
         mesh[i].updateScale(params)
-    }
-}
-
-function updateSize(value) {
-    for(var i = 0; i < mesh.length; i++) {
-        mesh[i].updateSize(value);
     }
 }
 
