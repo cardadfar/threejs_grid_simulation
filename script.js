@@ -34,10 +34,11 @@ function init() {
     container = document.getElementById( "my_canvas" );
 
     camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
-    camera.position.z = 700;
-    camera.position.y = 100;
+    camera.position.z = 325;
+    camera.position.y = 75;
+    camera.position.x = 325;
     scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0xa1a1a1 );
+    scene.background = new THREE.Color( 0x000000 );
     scene.add( new THREE.AmbientLight( 0x555555 ) );
 
 
@@ -72,6 +73,7 @@ function animate() {
     requestAnimationFrame( animate );
     render();
     stats.update();
+    console.log ( camera.rotation )
 }
 
 function render() {
@@ -96,10 +98,10 @@ function draw() {
     mesh.push( new Mesh(scene, params, new Vector3(0,0,0), 0x1c1f54) );
     
     // (scene, params, lifetime, offset, x-pos, height)
-    //for(var i = -200; i < 200; i += 5) {
+    for(var i = -225; i < 225; i += 3) {
         var lifetime = 4*(Math.random() + 0.25)
-        stream.push( new Stream(scene, params, lifetime, lifetime*Math.random(), 200, 100*(Math.random()) ) );
-    //}
+        stream.push( new Stream(scene, params, lifetime, lifetime*Math.random(), i, 100*(Math.random()) ) );
+    }
 
 
 
@@ -114,6 +116,14 @@ function draw() {
     gui.add( params, 'pause');
     gui.add( params, 'laplacian');
     gui.open();
+
+
+    $( ".close-button" ).click(function() {
+        if(gui.closed)
+            $( ".gui-space" ).css('margin-top', '40px')
+        else
+            $( ".gui-space" ).css('margin-top', '260px')
+    });
 
     
 }

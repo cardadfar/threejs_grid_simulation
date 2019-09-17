@@ -63,9 +63,9 @@ class Mesh {
 
                     if( curve.x > 0.8 )
                         color = colorA;
-                    else if( vUv.z > 6.0 )
+                    else if( vUv.z > 8.0 )
                         color = colorB;
-                    else if( vUv.z > 2.0 )
+                    else if( vUv.z > 4.0 )
                         color = colorC;
                     else 
                         color = colorD;
