@@ -50,6 +50,7 @@ class Mesh {
 
                 uniform sampler2D curvature;
                 uniform sampler2D gradient;
+                uniform sampler2D rifts;
           
                 void main() {
 
@@ -57,7 +58,25 @@ class Mesh {
                     float newY = -1.0 * xy.y + 1.0;
                     vec2 newXY = vec2(newX, newY);
                     vec4 curve = texture2D(curvature, newXY);
-                    vec4 grad  = texture2D(gradient, newXY);
+                    vec4 gradX  = texture2D(gradient, newXY);
+                    vec4 rift;
+
+                    if(gradX.x > 0.2) {
+                        float newY_r = newY + 2.0*newX;
+                        if (newY_r > 1.0) { newY_r =  newY_r - floor(newY_r); }
+                        if (newY_r < 0.0) { newY_r = -newY_r - floor(-newY_r); }
+                        vec2 riftXY = vec2(newX, newY_r);
+                        rift  = texture2D(rifts, riftXY);
+                    }
+
+                    else if(gradX.y > 0.2) {
+                        float newY_r = newY - 2.0*newX;
+                        if (newY_r > 1.0) { newY_r =  newY_r - floor(newY_r); }
+                        if (newY_r < 0.0) { newY_r = -newY_r - floor(-newY_r); }
+                        vec2 riftXY = vec2(newX, newY_r);
+                        rift  = texture2D(rifts, riftXY);
+                    }
+
 
                     vec3 color;
 
@@ -75,6 +94,8 @@ class Mesh {
                     if( absNormal.z > 0.9 && vUv.z > 15.0 )
                         color = colorA;
                     
+                    if(rift.x > (1.0 - vUv.z/100.0) && vUv.z > 8.0 )
+                        color = colorA;
 
                     if( vUv_camera.z > 650.0 )
                         color = 0.5*color + 0.5*colorBlack;
@@ -96,13 +117,28 @@ class Mesh {
         var hgt = params.numY + 1;
         var curvature = new Uint8Array( 3 * wth * hgt );
         var gradient  = new Uint8Array( 3 * wth * hgt );
+        var rifts  = new Uint8Array( 3 * wth * hgt );
 
         var curvatureTexture = new THREE.DataTexture(curvature, wth, hgt, THREE.RGBFormat);
         var gradientTexture  = new THREE.DataTexture(gradient , wth, hgt, THREE.RGBFormat);
+        var riftTexture  = new THREE.DataTexture(rifts, wth, hgt, THREE.RGBFormat);
+
+        for(var j = 0; j < hgt; j+=3) {
+            for(var i = 0; i < wth; i++) {
+                rifts[ 3*(j*wth + i) + 0 ] = 255;
+                rifts[ 3*(j*wth + i) + 1 ] = 255;
+                rifts[ 3*(j*wth + i) + 2 ] = 255;
+            }
+        }
+
         curvatureTexture.magFilter = THREE.LinearFilter;
         gradientTexture.magFilter = THREE.LinearFilter;
+        riftTexture.magFilter = THREE.LinearFilter;
+
         curvatureTexture.needsUpdate = true;
         gradientTexture.needsUpdate = true;
+        riftTexture.needsUpdate = true;
+
 
         var uniforms = {}
         uniforms.colorA     = {type: 'vec3', value: new THREE.Color(0xffffff)}
@@ -110,8 +146,10 @@ class Mesh {
         uniforms.colorC     = {type: 'vec3', value: new THREE.Color(0x0095c6)}
         uniforms.colorD     = {type: 'vec3', value: new THREE.Color(0x132893)}
         uniforms.colorBlack = {type: 'vec3', value: new THREE.Color(0x264669)}
+
         uniforms.curvature  = {type: 't', value: curvatureTexture }
         uniforms.gradient  = {type: 't', value: gradientTexture }
+        uniforms.rifts  = {type: 't', value: riftTexture }
         
         var material =  new THREE.ShaderMaterial({
             uniforms: uniforms,
@@ -141,15 +179,12 @@ class Mesh {
         this.helper.visible = params.normals;
     }
 
-    updateMesh(time, params, burst) {
+    updateMesh(params, burst) {
 
 
 
         var positions = this.mesh.geometry.attributes.position.array
         var new_positions = positions.slice();
-
-
-
 
         for(var i = 0; i < burst.length; i++) {
             var mag = burst[i].mag;
@@ -160,9 +195,18 @@ class Mesh {
             
             for(var dy = 0; dy > -10; dy--) {
                 var yn = y + dy;
-                var hgt_scale = (-0.2 * (dy + 5)*(dy + 5) + 10) / 10
-                if( yn >= 0 )
-                    new_positions[3 * (yn * sx + x) + 2] = mag * params.scaleZ * hgt_scale;
+                
+                if(params.sumWaves) {
+                    var hgt_scale = (-0.2 * (dy + 5)*(dy + 5) + 10) / 40
+                    if( yn >= 0 )
+                        new_positions[3 * (yn * sx + x) + 2] += mag * params.scaleZ * hgt_scale;
+                }
+
+                else {
+                    var hgt_scale = (-0.2 * (dy + 5)*(dy + 5) + 10) / 10
+                    if( yn >= 0 )
+                        new_positions[3 * (yn * sx + x) + 2] = mag * params.scaleZ * hgt_scale;
+                }
             }
             
         } 
@@ -192,8 +236,6 @@ class Mesh {
         this.helper.update();
 
         this.old_positions = positions
-
-
 
         this.updateCurvature(params, new_positions);
 
@@ -241,7 +283,7 @@ class Mesh {
                 var dz2_dx2 = ( positions[ 3*(y*wth + (x-1)) + 2 ] - 2*positions[ 3*(y*wth + (x)) + 2 ] + positions[ 3*(y*wth + (x+1)) + 2 ] ) / (2 * params.scaleX)
                 var cz_dx = dz2_dx2 / (Math.pow( (1 + (dz_dx*dz_dx)), 1.5 ))
 
-                var dz_dy = (positions[ 3*((y-1)*wth + x) + 2 ] - positions[ 3*((y-1)*wth + x) + 2 ] ) / (2 * params.scaleX)
+                var dz_dy = (positions[ 3*((y+1)*wth + x) + 2 ] - positions[ 3*((y-1)*wth + x) + 2 ] ) / (2 * params.scaleX)
                 var dz2_dy2 = (positions[ 3*((y-1)*wth + x) + 2 ] - 2*positions[ 3*((y)*wth + x) + 2 ] + positions[ 3*((y+1)*wth + x) + 2 ] ) / (2 * params.scaleX)
                 var cz_dy = dz2_dy2 / (Math.pow( (1 + (dz_dy*dz_dy)), 1.5 ))
 
@@ -258,8 +300,8 @@ class Mesh {
 
                 
                 gradient[ 3*(y*wth + x)     ] = dz_dx;
-                gradient[ 3*(y*wth + x) + 1 ] = dz_dy;
-                gradient[ 3*(y*wth + x) + 2 ] = 0;
+                gradient[ 3*(y*wth + x) + 1 ] = -dz_dx;
+                //gradient[ 3*(y*wth + x) + 2 ] = Math.floor(Math.atan2(dz_dy, dz_dx));
 
             }
         }
@@ -271,6 +313,10 @@ class Mesh {
         this.mesh.material.uniforms.gradient.value  = gradientTexture;
 
     }
+
+
+
+    
 
 
     laplacianHeight(x, y, positions, params) {

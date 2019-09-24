@@ -8,7 +8,7 @@ var container, stats;
 var camera, controls, scene, renderer;
 var mouse = new THREE.Vector2();
 var time = 0.0;
-var mesh = [];
+var mesh;
 var stream = [];
 var params = {
                 scaleX: 5,
@@ -20,7 +20,8 @@ var params = {
                 wireframe: false,
                 normals: false,
                 pause: false,
-                laplacian: false
+                laplacian: false,
+                sumWaves: false
             };
 
 
@@ -73,7 +74,6 @@ function animate() {
     requestAnimationFrame( animate );
     render();
     stats.update();
-    console.log ( camera.rotation )
 }
 
 function render() {
@@ -85,9 +85,9 @@ function render() {
         for(var i = 0; i < stream.length; i++) {
             burst.push( stream[i].update(time, params) );
         }
-        for(var i = 0; i < mesh.length; i++) {
-            mesh[i].updateMesh(time, params, burst);
-        }
+        
+        mesh.updateMesh(params, burst);
+        
     }
     renderer.render( scene, camera );
 }
@@ -95,7 +95,7 @@ function render() {
 
 function draw() {
 
-    mesh.push( new Mesh(scene, params, new Vector3(0,0,0), 0x1c1f54) );
+    mesh = new Mesh(scene, params, new Vector3(0,0,0), 0x1c1f54);
     
     // (scene, params, lifetime, offset, x-pos, height)
     for(var i = -225; i < 225; i += 3) {
@@ -109,12 +109,13 @@ function draw() {
     var gui = new GUI();
     gui.add( params, 'timestep', 0, 0.3 );
     gui.add( params, 'scaleX', 1, 100 ).onChange( function () { updateScale() } );
-    gui.add( params, 'scaleZ', 0, 1 )
+    gui.add( params, 'scaleZ', 0, 3 )
     gui.add( params, 'scaleY', 1, 100 ).onChange( function () { updateScale() } );
     gui.add( params, 'wireframe').onChange( function () { updateMaterial() } );
     gui.add( params, 'normals').onChange( function () { updateMaterial() } );
     gui.add( params, 'pause');
     gui.add( params, 'laplacian');
+    gui.add( params, 'sumWaves');
     gui.open();
 
 
@@ -129,15 +130,11 @@ function draw() {
 }
 
 function updateScale() {
-    for(var i = 0; i < mesh.length; i++) {
-        mesh[i].updateScale(params)
-    }
+    mesh.updateScale(params);
 }
 
 function updateMaterial() {
-    for(var i = 0; i < mesh.length; i++) {
-        mesh[i].updateMaterial(params);
-    }
+    mesh.updateMaterial(params);
 }
 
 
