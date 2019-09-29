@@ -97,10 +97,16 @@ function draw() {
 
     mesh = new Mesh(scene, params, new Vector3(0,0,0), 0x1c1f54);
     
-    // (scene, params, lifetime, offset, x-pos, height)
+    var guide = []
+    guide.push( new THREE.Vector3( 0, 0, -1   ) )
+    guide.push( new THREE.Vector3( 0, 0, -1/2 ) )
+    guide.push( new THREE.Vector3( 0, 0, 1/2  ) ) 
+    guide.push( new THREE.Vector3( 0, 0, 1    ) )
+
+    // (scene, params, guide, lifetime, offset, x-pos, height)
     for(var i = -225; i < 225; i += 3) {
         var lifetime = 4*(Math.random() + 0.25)
-        stream.push( new Stream(scene, params, lifetime, lifetime*Math.random(), i, 100*(Math.random()) ) );
+        stream.push( new Stream(scene, params, guide, lifetime, lifetime*Math.random(), i, 100*(Math.random()) ) );
     }
 
 

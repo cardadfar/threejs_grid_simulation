@@ -1,6 +1,6 @@
 class Stream {
 
-    constructor(scene, params, lifetime, starttime, x, peak) {
+    constructor(scene, params, guide, lifetime, starttime, x, peak) {
         /* curve - reference to curve
          * stream - reference to line
          * point - reference to point
@@ -18,11 +18,20 @@ class Stream {
         var boundaryX = params.scaleX * params.numX;
         var boundaryZ = params.scaleY * params.numY;
 
+
+        var xrand = 100.0
+        var dx = []
+        dx.push( Math.random() * xrand )
+        dx.push( Math.random() * xrand )
+        dx.push( Math.random() * xrand )
+        dx.push( Math.random() * xrand )
+        
+
         this.curve = new THREE.CubicBezierCurve3(
-            new THREE.Vector3( x, 0, -boundaryZ/2 ),
-            new THREE.Vector3( x, 0, -boundaryZ/4 ),
-            new THREE.Vector3( x, 0, boundaryZ/4 ),
-            new THREE.Vector3( x, 0, boundaryZ/2 )
+            new THREE.Vector3( boundaryX/2 * guide[0].x + x + dx[0], 0, boundaryZ/2 * guide[0].z ),
+            new THREE.Vector3( boundaryX/2 * guide[1].x + x + dx[1], 0, boundaryZ/2 * guide[1].z ),
+            new THREE.Vector3( boundaryX/2 * guide[2].x + x + dx[2], 0, boundaryZ/2 * guide[2].z ),
+            new THREE.Vector3( boundaryX/2 * guide[3].x + x + dx[3], 0, boundaryZ/2 * guide[3].z )
         );
         
         var points = this.curve.getPoints( 50 );
@@ -62,8 +71,8 @@ class Stream {
         var boundaryX = params.scaleX * params.numX;
         var boundaryZ = params.scaleY * params.numY;
 
-        this.curve.v0 = new THREE.Vector3( this.x, 0, -boundaryZ/2);
-        this.curve.v3 = new THREE.Vector3( this.x, 0, boundaryZ/2);
+        //this.curve.v0 = new THREE.Vector3( this.x, 0, -boundaryZ/2);
+        //this.curve.v3 = new THREE.Vector3( this.x, 0, boundaryZ/2);
 
         var points = this.curve.getPoints( 50 );
         var geometry = new THREE.BufferGeometry().setFromPoints( points );
