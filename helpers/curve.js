@@ -19,7 +19,7 @@ class Stream {
         var boundaryZ = params.scaleY * params.numY;
 
 
-        var xrand = 100.0
+        var xrand = 0.0
         var dx = []
         dx.push( Math.random() * xrand )
         dx.push( Math.random() * xrand )

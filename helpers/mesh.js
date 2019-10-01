@@ -94,7 +94,7 @@ class Mesh {
                     if( absNormal.z > 0.9 && vUv.z > 15.0 )
                         color = colorA;
                     
-                    if(rift.x > (1.0 - vUv.z/100.0) && vUv.z > 8.0 )
+                    if(rift.x > (1.0 - vUv.z/200.0) && vUv.z > 8.0 )
                         color = colorA;
 
                     if( vUv_camera.z > 650.0 )

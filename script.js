@@ -11,11 +11,11 @@ var time = 0.0;
 var mesh;
 var stream = [];
 var params = {
-                scaleX: 5,
-                scaleY: 5,
+                scaleX: 3,
+                scaleY: 3,
                 scaleZ: 0.5,
-                numX: 100,
-                numY: 100,
+                numX: 150,
+                numY: 150,
                 timestep: 0.015,
                 wireframe: false,
                 normals: false,
@@ -98,13 +98,13 @@ function draw() {
     mesh = new Mesh(scene, params, new Vector3(0,0,0), 0x1c1f54);
     
     var guide = []
-    guide.push( new THREE.Vector3( 0, 0, -1   ) )
-    guide.push( new THREE.Vector3( 0, 0, -1/2 ) )
-    guide.push( new THREE.Vector3( 0, 0, 1/2  ) ) 
-    guide.push( new THREE.Vector3( 0, 0, 1    ) )
+    guide.push( new THREE.Vector3( 1, 0, -1   ) )
+    guide.push( new THREE.Vector3( 1/2, 0, -1/2 ) )
+    guide.push( new THREE.Vector3( -1/2, 0, 1/2  ) ) 
+    guide.push( new THREE.Vector3( -1, 0, 1    ) )
 
     // (scene, params, guide, lifetime, offset, x-pos, height)
-    for(var i = -225; i < 225; i += 3) {
+    for(var i = 0; i < 1; i += 5) {
         var lifetime = 4*(Math.random() + 0.25)
         stream.push( new Stream(scene, params, guide, lifetime, lifetime*Math.random(), i, 100*(Math.random()) ) );
     }
